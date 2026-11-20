@@ -1,25 +1,13 @@
-from django.urls import path
+from django.urls import include, path
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from . import prestamos_views, views
+from .usuarios import RegistroView
 
 urlpatterns = [
-    # Práctico 1: vistas funcionales con @api_view
-    path("libros/", views.libro_list, name="libro-list"),
-    path("libros/<int:pk>/", views.libro_detail, name="libro-detail"),
-    # Práctico 2: vistas basadas en clases
-    path(
-        "libros/<int:pk>/detalle/",
-        prestamos_views.LibroDetalleView.as_view(),
-        name="libro-detalle",
-    ),
-    path(
-        "prestamos/",
-        prestamos_views.PrestamoListCreateView.as_view(),
-        name="prestamo-list",
-    ),
-    path(
-        "prestamos/<int:pk>/",
-        prestamos_views.PrestamoDetailView.as_view(),
-        name="prestamo-detail",
-    ),
+    # Autenticación
+    path("auth/registro/", RegistroView.as_view(), name="registro"),
+    path("auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    # ViewSets registrados en el router
+    path("", include("libros.routers")),
 ]

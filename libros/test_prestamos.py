@@ -1,11 +1,17 @@
+from django.contrib.auth.models import User
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from .models import Libro, Prestamo
 
+CLAVE = "UnaClaveSegura2026"
+
 
 class PrestamoApiTests(APITestCase):
     def setUp(self):
+        self.usuario = User.objects.create_user("ana", password=CLAVE)
+        self.admin = User.objects.create_user("admin", password=CLAVE, is_staff=True)
+        self.client.force_authenticate(self.usuario)
         self.libro = Libro.objects.create(
             titulo="Rayuela",
             autor="Julio Cortázar",
@@ -87,7 +93,7 @@ class PrestamoApiTests(APITestCase):
         respuesta = self.client.get("/api/prestamos/9999/")
         self.assertEqual(respuesta.status_code, 404)
 
-    def test_devolver_libera_el_libro_y_pone_la_fecha(self):
+    def test_devolver_con_patch_libera_el_libro_y_pone_la_fecha(self):
         prestamo_id = self.crear().data["id"]
         respuesta = self.client.patch(
             f"/api/prestamos/{prestamo_id}/", {"devuelto": True}, format="json"
@@ -98,6 +104,20 @@ class PrestamoApiTests(APITestCase):
         )
         self.libro.refresh_from_db()
         self.assertTrue(self.libro.disponible)
+
+    def test_accion_devolver(self):
+        prestamo_id = self.crear().data["id"]
+        respuesta = self.client.post(f"/api/prestamos/{prestamo_id}/devolver/")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.data["devuelto"])
+        self.libro.refresh_from_db()
+        self.assertTrue(self.libro.disponible)
+
+    def test_devolver_dos_veces_falla(self):
+        prestamo_id = self.crear().data["id"]
+        self.client.post(f"/api/prestamos/{prestamo_id}/devolver/")
+        respuesta = self.client.post(f"/api/prestamos/{prestamo_id}/devolver/")
+        self.assertEqual(respuesta.status_code, 400)
 
     def test_put_actualiza_el_lector(self):
         prestamo_id = self.crear().data["id"]
@@ -118,13 +138,30 @@ class PrestamoApiTests(APITestCase):
         )
         self.assertEqual(respuesta.status_code, 400)
 
-    def test_borrar_un_prestamo_abierto_libera_el_libro(self):
+    def test_usuario_comun_no_puede_borrar_un_prestamo(self):
         prestamo_id = self.crear().data["id"]
+        respuesta = self.client.delete(f"/api/prestamos/{prestamo_id}/")
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertEqual(Prestamo.objects.count(), 1)
+
+    def test_admin_borra_un_prestamo_abierto_y_libera_el_libro(self):
+        prestamo_id = self.crear().data["id"]
+        self.client.force_authenticate(self.admin)
         respuesta = self.client.delete(f"/api/prestamos/{prestamo_id}/")
         self.assertEqual(respuesta.status_code, 204)
         self.libro.refresh_from_db()
         self.assertTrue(self.libro.disponible)
         self.assertEqual(Prestamo.objects.count(), 0)
+
+    def test_anonimo_no_puede_ver_prestamos(self):
+        self.client.force_authenticate(None)
+        respuesta = self.client.get("/api/prestamos/")
+        self.assertEqual(respuesta.status_code, 401)
+
+    def test_anonimo_no_puede_crear_prestamos(self):
+        self.client.force_authenticate(None)
+        respuesta = self.crear()
+        self.assertEqual(respuesta.status_code, 401)
 
     def test_detalle_del_libro_trae_los_prestamos_anidados(self):
         self.crear()

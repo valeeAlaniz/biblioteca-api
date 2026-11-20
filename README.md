@@ -68,3 +68,31 @@ Campos de `Prestamo`: `libro`, `lector`, `fecha_prestamo`, `fecha_devolucion`, `
 | GET | `/api/libros/<id>/detalle/` | Un libro con la lista de sus préstamos anidada |
 
 Reglas: no se puede prestar un libro no disponible, no se puede cambiar el libro de un préstamo existente y la fecha de devolución no puede ser anterior a la del préstamo.
+
+## Práctico 3: ViewSets, routers, permisos y JWT
+
+Las vistas pasan a ser ViewSets registrados en `libros/routers.py` con un `DefaultRouter`:
+
+| Ruta | ViewSet | Tipo | Permisos |
+| --- | --- | --- | --- |
+| `/api/libros/` | `LibroViewSet` | `ModelViewSet` | Leer: público. Escribir: solo admin |
+| `/api/prestamos/` | `PrestamoViewSet` | `ModelViewSet` | Usuario logueado. Borrar: solo admin |
+| `/api/catalogo/` | `CatalogoViewSet` | `ReadOnlyModelViewSet` | Público. Solo libros disponibles |
+
+Acciones extra: `GET /api/libros/<id>/detalle/` (libro con sus préstamos anidados, requiere login) y `POST /api/prestamos/<id>/devolver/`.
+
+### Autenticación
+
+Se usa JWT con `djangorestframework-simplejwt`. También funciona `SessionAuthentication` de DRF (login en `/api-auth/login/` para la interfaz web).
+
+| Método | Ruta | Qué hace |
+| --- | --- | --- |
+| POST | `/api/auth/registro/` | Crea un usuario común. Cuerpo: `username`, `password` (y `email` opcional) |
+| POST | `/api/auth/token/` | Login: devuelve `access` (30 min) y `refresh` (1 día) |
+| POST | `/api/auth/token/refresh/` | Con el `refresh` entrega un `access` nuevo |
+
+Para usar un endpoint protegido se envía el header `Authorization: Bearer <access>`.
+
+Los códigos de respuesta: `401` si falta el token o es inválido, `403` si el usuario no tiene permiso (por ejemplo, un usuario común intenta crear un libro).
+
+Para crear un admin: `uv run python manage.py createsuperuser`.
