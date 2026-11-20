@@ -51,3 +51,20 @@ uv run python manage.py test libros
 ## Autores
 
 Valentina Alaniz
+## Práctico 2: préstamos
+
+Se agrega el modelo `Prestamo`, relacionado con `Libro` por clave foránea (un libro tiene muchos préstamos).
+Las vistas son basadas en clases (`ListCreateAPIView` y `RetrieveUpdateDestroyAPIView`) y los serializers son anidados.
+
+Campos de `Prestamo`: `libro`, `lector`, `fecha_prestamo`, `fecha_devolucion`, `devuelto`.
+
+| Método | Ruta | Qué hace |
+| --- | --- | --- |
+| GET | `/api/prestamos/` | Lista préstamos con el libro anidado. Filtros: `?devuelto=false`, `?libro=1` |
+| POST | `/api/prestamos/` | Crea un préstamo. Se envía `libro_id` y `lector`. El libro queda no disponible |
+| GET | `/api/prestamos/<id>/` | Detalle de un préstamo |
+| PUT / PATCH | `/api/prestamos/<id>/` | Edita un préstamo. Con `{"devuelto": true}` se registra la devolución y el libro vuelve a estar disponible |
+| DELETE | `/api/prestamos/<id>/` | Elimina un préstamo |
+| GET | `/api/libros/<id>/detalle/` | Un libro con la lista de sus préstamos anidada |
+
+Reglas: no se puede prestar un libro no disponible, no se puede cambiar el libro de un préstamo existente y la fecha de devolución no puede ser anterior a la del préstamo.
